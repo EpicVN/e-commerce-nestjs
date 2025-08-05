@@ -1,16 +1,21 @@
-import { ConflictException, Injectable } from '@nestjs/common'
-import { isUniqueConstraintPrismaError } from 'src/shared/helpers'
+import { Injectable, UnprocessableEntityException } from '@nestjs/common'
+import { generateOTP, isUniqueConstraintPrismaError } from 'src/shared/helpers'
 import { HashingService } from 'src/shared/services/hashing.service'
-import { RegisterBodyType } from './auth.model'
+import { RegisterBodyType, SendOTPBodyType } from './auth.model'
 import { AuthRepository } from './auth.repo'
 import { RolesService } from './roles.service'
+import { SharedUserRepository } from 'src/shared/repositories/shared-user.repo'
+import { addMilliseconds } from 'date-fns'
+import ms, { StringValue } from 'ms'
+import envConfig from 'src/shared/config'
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly hashingService: HashingService,
-    private readonly AuthRepository: AuthRepository,
+    private readonly authRepository: AuthRepository,
     private readonly rolesService: RolesService,
+    private readonly sharedUserRepository: SharedUserRepository,
   ) {}
 
   async register(body: RegisterBodyType) {
@@ -18,7 +23,7 @@ export class AuthService {
       const clientRoleId = await this.rolesService.getClientRoleId()
       const hashedPassword = await this.hashingService.hash(body.password)
 
-      return await this.AuthRepository.createUser({
+      return await this.authRepository.createUser({
         email: body.email,
         name: body.name,
         phoneNumber: body.phoneNumber,
@@ -27,11 +32,45 @@ export class AuthService {
       })
     } catch (error) {
       if (isUniqueConstraintPrismaError(error)) {
-        throw new ConflictException('Email đã tồn tại')
+        throw new UnprocessableEntityException([
+          {
+            message: 'Email đã được đăng kí',
+            field: 'email',
+          },
+        ])
       }
 
       throw error
     }
+  }
+
+  async sendOTP(body: SendOTPBodyType) {
+    // Check if email exists
+    const user = await this.sharedUserRepository.findUnique({
+      email: body.email,
+    })
+
+    if (user) {
+      throw new UnprocessableEntityException([
+        {
+          message: 'Email đã được đăng kí',
+          field: 'email',
+        },
+      ])
+    }
+
+    // Create OTP code
+    const code = generateOTP()
+
+    const verificationCode = this.authRepository.createVerificationCode({
+      email: body.email,
+      code,
+      type: body.type,
+      expiresAt: addMilliseconds(new Date(), ms(envConfig.OTP_EXPIRES_IN as StringValue)),
+    })
+
+    // Send OTP code to email
+    return verificationCode
   }
 
   // async login(body: any) {
