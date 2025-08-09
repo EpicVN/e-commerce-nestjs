@@ -8,6 +8,7 @@ import { SharedUserRepository } from 'src/shared/repositories/shared-user.repo'
 import { addMilliseconds } from 'date-fns'
 import ms, { StringValue } from 'ms'
 import envConfig from 'src/shared/config'
+import { EmailService } from 'src/shared/services/email.service'
 
 @Injectable()
 export class AuthService {
@@ -16,6 +17,7 @@ export class AuthService {
     private readonly authRepository: AuthRepository,
     private readonly rolesService: RolesService,
     private readonly sharedUserRepository: SharedUserRepository,
+    private readonly emailService: EmailService,
   ) {}
 
   async register(body: RegisterBodyType) {
@@ -93,6 +95,20 @@ export class AuthService {
     })
 
     // Send OTP code to email
+    const { error } = await this.emailService.sendOTP({
+      email: body.email,
+      code,
+    })
+
+    if (error) {
+      throw new UnprocessableEntityException([
+        {
+          message: 'Gửi mã OTP thất bại',
+          path: 'code',
+        },
+      ])
+    }
+
     return verificationCode
   }
 
