@@ -6,6 +6,7 @@ export interface AccessTokenCreatePayload {
 }
 
 export interface AccessTokenPayload extends AccessTokenCreatePayload {
+  uuid: string
   exp: number
   iat: number
 }
@@ -15,6 +16,7 @@ export interface RefreshTokenCreatePayload {
 }
 
 export interface RefreshTokenPayload extends RefreshTokenCreatePayload {
+  uuid: string
   exp: number
   iat: number
 }
