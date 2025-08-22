@@ -1,6 +1,13 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from 'src/shared/services/prisma.service'
-import { DeviceType, RegisterBodyType, RoleType, VerificationCodeType } from './auth.model'
+import {
+  DeviceType,
+  RefreshTokenType,
+  RefreshTokenWithUserAndRoleType,
+  RegisterBodyType,
+  RoleType,
+  VerificationCodeType,
+} from './auth.model'
 import { UserType } from 'src/shared/models/shared-user.model'
 import { TypeOfVerificationCodeType } from 'src/shared/constants/auth.constant'
 
@@ -41,7 +48,7 @@ export class AuthRepository {
     })
   }
 
-  createRefreshToken(data: { token: string; userId: number; expireAt: Date; deviceId: number }) {
+  createRefreshToken(data: { token: string; userId: number; expiresAt: Date; deviceId: number }) {
     return this.prismaService.refreshToken.create({
       data: data,
     })
@@ -63,6 +70,36 @@ export class AuthRepository {
       include: {
         role: true,
       },
+    })
+  }
+
+  async findUniqueRefreshTokenIncludeUserRole(uniqueObject: {
+    token: string
+  }): Promise<RefreshTokenWithUserAndRoleType | null> {
+    return this.prismaService.refreshToken.findUnique({
+      where: uniqueObject,
+      include: {
+        user: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    })
+  }
+
+  updateDevice(deviceId: number, data: Partial<DeviceType>) {
+    return this.prismaService.device.update({
+      where: {
+        id: deviceId,
+      },
+      data,
+    })
+  }
+
+  deleteRefreshToken(uniqueObject: { token: string }): Promise<RefreshTokenType> {
+    return this.prismaService.refreshToken.delete({
+      where: uniqueObject,
     })
   }
 }

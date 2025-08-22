@@ -1,5 +1,5 @@
 import { TypeOfVerificationCode } from 'src/shared/constants/auth.constant'
-import { UserSchema } from 'src/shared/models/shared-user.model'
+import { UserSchema, UserType } from 'src/shared/models/shared-user.model'
 import { z } from 'zod'
 
 // Register schema
@@ -71,6 +71,15 @@ export const RefreshTokenSchema = z.object({
   createdAt: z.date(),
 })
 
+export const RefreshTokenWithUserSchema = z.object({
+  token: z.string(),
+  userId: z.number(),
+  deviceId: z.number(),
+  expiresAt: z.date(),
+  createdAt: z.date(),
+  user: UserSchema,
+})
+
 // Device schema
 export const DeviceSchema = z.object({
   id: z.number(),
@@ -112,6 +121,11 @@ export type LoginBodyType = z.infer<typeof LoginBodySchema>
 export type RefreshTokenBodyType = z.infer<typeof RefreshTokenBodySchema>
 export type RefreshTokenResType = LoginResType
 export type RefreshTokenType = z.infer<typeof RefreshTokenSchema>
+export type RefreshTokenWithUserAndRoleType = RefreshTokenType & {
+  user: UserType & {
+    role: RoleType
+  }
+}
 
 export type DeviceType = z.infer<typeof DeviceSchema>
 
