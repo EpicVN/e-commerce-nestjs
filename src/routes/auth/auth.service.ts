@@ -2,7 +2,7 @@ import { HttpException, Injectable, UnauthorizedException, UnprocessableEntityEx
 import { addMilliseconds } from 'date-fns'
 import ms, { StringValue } from 'ms'
 import envConfig from 'src/shared/config'
-import { generateOTP, isUniqueConstraintPrismaError } from 'src/shared/helpers'
+import { generateOTP, isNotFoundPrismaError, isUniqueConstraintPrismaError } from 'src/shared/helpers'
 import { SharedUserRepository } from 'src/shared/repositories/shared-user.repo'
 import { EmailService } from 'src/shared/services/email.service'
 import { HashingService } from 'src/shared/services/hashing.service'
@@ -197,7 +197,7 @@ export class AuthService {
       })
 
       if (!refreshTokenInDb) {
-        throw new UnauthorizedException('Refresh token đã bị đánh cắp')
+        throw new UnauthorizedException('Refresh Token đã được sử dụng')
       }
 
       const {
@@ -235,27 +235,30 @@ export class AuthService {
     }
   }
 
-  // async logout(refreshToken: string) {
-  //   try {
-  //     // 1. Kiểm tra refreshToken có hợp lệ
-  //     await this.tokenService.verifyRefreshToken(refreshToken)
+  async logout(refreshToken: string) {
+    try {
+      // 1. Kiểm tra refreshToken có hợp lệ
+      await this.tokenService.verifyRefreshToken(refreshToken)
 
-  //     // 2. Xóa refreshToken trong db
-  //     await this.PrismaService.refreshToken.delete({
-  //       where: {
-  //         token: refreshToken,
-  //       },
-  //     })
+      // 2. Xóa refreshToken trong db
+      const deletedRefreshToken = await this.authRepository.deleteRefreshToken({
+        token: refreshToken,
+      })
 
-  //     return {
-  //       message: 'Logout successfully!',
-  //     }
-  //   } catch (error) {
-  //     if (isNotFoundPrismaError(error)) {
-  //       throw new UnauthorizedException('Refresh token has been revoked')
-  //     }
+      // 3. Cập nhập device đã logout
+      await this.authRepository.updateDevice(deletedRefreshToken.deviceId, {
+        isActive: false,
+      })
 
-  //     throw new UnauthorizedException()
-  //   }
-  // }
+      return {
+        message: 'Đăng xuất thành công',
+      }
+    } catch (error) {
+      if (isNotFoundPrismaError(error)) {
+        throw new UnauthorizedException('Refresh Token đã được sử dụng')
+      }
+
+      throw new UnauthorizedException()
+    }
+  }
 }
